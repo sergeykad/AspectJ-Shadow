@@ -1,0 +1,11 @@
+<aspectj>
+
+    <aspects>
+        <!-- declare existing aspects to the weaver -->
+        <aspect name="com.my.aspects.MethodLogger"/>
+    </aspects>
+
+    <weaver options="-verbose -proceedOnError -noWarn -Xlintfile:META-INF/Xlint.properties -Xset:weaveJavaPackages=true,weaveJavaxPackages=true">
+    </weaver>
+
+</aspectj>

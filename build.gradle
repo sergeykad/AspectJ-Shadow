@@ -1,0 +1,89 @@
+plugins {
+    id 'com.github.johnrengelman.shadow' version '1.2.3'
+    id 'project-report'
+    id 'java'
+}
+
+ext {
+    aspectjVersion = '1.8.9'
+    javaVersion = 1.8
+}
+
+compileJava {
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+}
+
+configurations {
+    ajc
+    aspects
+    aspectCompile
+    ajInpath
+
+    compile {
+        extendsFrom aspects
+    }
+}
+
+repositories {
+    jcenter()
+}
+
+shadowJar {
+    mergeServiceFiles()
+    relocate 'org.aspectj', 'com.repackaged.aspectj'
+}
+
+jar.doFirst {
+    manifest {
+        attributes("Manifest-Version": "1.0",
+                'Main-Class': 'com.my.Foo',
+                'Build-Time': new Date().format("yyyy-MM-dd HH:mm:ss")
+        )
+    }
+}
+
+shadowJar.doFirst {
+    manifest {
+        attributes("Manifest-Version": "1.0",
+                'Main-Class': 'com.my.Foo',
+                'Build-Time': new Date().format("yyyy-MM-dd HH:mm:ss"),
+                'Premain-Class': 'com.repackaged.aspectj.weaver.loadtime.Agent',
+                'Agent-Class': 'com.repackaged.aspectj.weaver.loadtime.Agent',
+                'Can-Redefine-Classes': true
+        )
+    }
+}
+
+task compileAjc(overwrite: true) {
+    outputs.dir sourceSets.main.output.classesDir
+    inputs.dir 'src/main/java/com/my/aspects'
+
+    doLast {
+        ant.taskdef(resource: "org/aspectj/tools/ant/taskdefs/aspectjTaskdefs.properties",
+                classpath: configurations.ajc.asPath)
+        ant.iajc(
+                source: javaVersion,
+                target: javaVersion,
+                destDir: sourceSets.main.output.classesDir.absolutePath,
+                // Jars containing classes where aspects should be woven into should be declared in the ajInpath configuration
+                inpath: configurations.ajInpath.asPath,
+                // Jars containing aspects to be woven should be declared in the aspects configuration
+                aspectPath: configurations.aspects.asPath,
+                Xlint: "ignore",
+                sourceRootCopyFilter: "**/*.java",
+                classpath: "${configurations.compileClasspath.asPath};${sourceSets.main.output.classesDir};",
+                sourceroots: 'src/main/java/com/my/aspects'
+        )
+    }
+}
+
+dependencies {
+    ajc "org.aspectj:aspectjtools:$aspectjVersion"
+
+    compile "org.aspectj:aspectjrt:$aspectjVersion",
+            "org.aspectj:aspectjweaver:$aspectjVersion"
+
+}
+
+processResources.dependsOn(compileAjc)
